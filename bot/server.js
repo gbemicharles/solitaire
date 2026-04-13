@@ -13,6 +13,16 @@ app.use(bodyParser.json());
 const tournaments = [];
 const users = {}; // Stores { ton: number, diamonds: number }
 
+const initUser = (userId, refId = null) => {
+  if (!users[userId]) {
+    users[userId] = { ton: 0.0, diamonds: 100 };
+    // Process referral bounty cleanly checking against self-referrals
+    if (refId && users[refId] && refId !== userId) {
+      users[refId].diamonds += 50;
+    }
+  }
+};
+
 const generateSeed = () => crypto.randomInt(0, 4294967295);
 
 const getPrizes = (type) => {
@@ -25,10 +35,7 @@ app.post('/create-match', (req, res) => {
   const { userId, type } = req.body;
   if (!userId || !type) return res.status(400).json({ error: 'Missing params' });
 
-  // Initialize new user with temporary fallback balance if they don't exist
-  if (!users[userId]) {
-    users[userId] = { ton: 14.50, diamonds: 1250 };
-  }
+  initUser(userId);
 
   const costTon = type === 'TON' ? 1.0 : 0.0;
   const costDiamond = type === 'DIAMOND' ? 20 : 0;
@@ -57,8 +64,6 @@ app.post('/create-match', (req, res) => {
       players: []
     };
     tournaments.push(tourny);
-  }
-
   }
 
   tourny.players.push({
@@ -133,9 +138,9 @@ app.get('/user-tournaments/:userId', (req, res) => {
 
 app.get('/user-balance/:userId', (req, res) => {
   const { userId } = req.params;
-  if (!users[userId]) {
-    users[userId] = { ton: 14.50, diamonds: 1250 };
-  }
+  const refId = req.query.ref;
+  
+  initUser(userId, refId);
   res.json(users[userId]);
 });
 
@@ -146,7 +151,7 @@ app.post('/claim-prize', (req, res) => {
   
   if (!player || player.hasClaimed || player.prize <= 0) return res.status(400).json({ error: 'Invalid claim' });
 
-  if (!users[userId]) users[userId] = { ton: 14.50, diamonds: 1250 };
+  initUser(userId);
 
   if (tourny.type === 'TON') users[userId].ton += player.prize;
   if (tourny.type === 'DIAMOND') users[userId].diamonds += player.prize;

@@ -27,7 +27,11 @@ function App() {
 
   const fetchBalance = () => {
     const userId = getUserData().id.toString();
-    fetch(`${API_URL}/user-balance/${userId}`)
+    // Safely extract the referral ID from the native Telegram session if one exists
+    // @ts-ignore
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param || '';
+
+    fetch(`${API_URL}/user-balance/${userId}?ref=${startParam}`)
       .then(res => res.json())
       .then(data => {
         if (!data.error) setBalances(data);
